@@ -8,9 +8,36 @@
 //! `uiAccess="false"` and the explicit `longPathAware` and DPI entries keep the
 //! manifest honest: elevation is requested for the operations that need it, not
 //! as a blanket grab.
+//!
+//! ## Do not remove the Common-Controls dependency
+//!
+//! Supplying a custom manifest *replaces* the default one Tauri would otherwise
+//! embed — it does not merge with it. The `<dependency>` block below is part of
+//! that default, and dropping it is not cosmetic: without an explicit dependency
+//! on ComCtl32 version 6, Windows loads version 5, which does not export
+//! `TaskDialogIndirect`. The app then dies at launch with
+//!
+//!     The procedure entry point TaskDialogIndirect could not be located
+//!     in the dynamic link library ...
+//!
+//! before any of our code runs, so nothing in the app can catch or report it.
+//! This exact bug shipped in the first build. Keep the block.
 
 const MANIFEST: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity type="win32" name="com.forged.optimiser" version="1.0.0.0" />
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        processorArchitecture="*"
+        publicKeyToken="6595b64144ccf1df"
+        language="*"
+      />
+    </dependentAssembly>
+  </dependency>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges>
@@ -34,7 +61,35 @@ const MANIFEST: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?
 </assembly>
 "#;
 
+/// Fails the build rather than shipping an executable that cannot start.
+///
+/// The Common-Controls omission could not be caught by any test we run: the
+/// binary compiles, links, and passes CI, then dies in the Windows loader before
+/// `main` on the user's machine. A string check at build time is crude, but it
+/// is the only place this class of mistake can be caught at all.
+fn assert_manifest_is_complete() {
+    for (needle, why) in [
+        (
+            "Microsoft.Windows.Common-Controls",
+            "without it Windows loads ComCtl32 v5, which lacks TaskDialogIndirect, \
+             and the app dies in the loader before main",
+        ),
+        (
+            "requireAdministrator",
+            "Forged writes to HKLM and reconfigures services; without elevation every \
+             actuator fails",
+        ),
+    ] {
+        assert!(
+            MANIFEST.contains(needle),
+            "application manifest is missing `{needle}` — {why}"
+        );
+    }
+}
+
 fn main() {
+    assert_manifest_is_complete();
+
     let windows = tauri_build::WindowsAttributes::new().app_manifest(MANIFEST);
 
     tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
