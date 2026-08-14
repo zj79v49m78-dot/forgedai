@@ -10,6 +10,13 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+# Superseded runs on the same branch are cancelled. Without this, several
+# Windows installer builds queue up behind each other on a rapid sequence of
+# pushes, and only the last one's artifact is of any interest anyway.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Runs on Linux because the core crate is deliberately platform-independent
   # for exactly this reason: the catalog invariants, journal round-tripping and
