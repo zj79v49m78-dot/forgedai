@@ -186,6 +186,33 @@ mod tests {
         }
     }
 
+    /// Writing a key's *default* value (empty value name) creates the key as a
+    /// side effect, and undo can only delete the value — leaving an empty key
+    /// behind. For tweaks that work by key presence, that means rollback
+    /// silently fails to restore the original behaviour. Named values only.
+    #[test]
+    fn no_action_writes_a_default_value() {
+        use crate::tweaks::model::Action;
+        let profile = crate::hardware::HardwareProfile::default();
+
+        for tweak in all() {
+            for action in tweak.actions_for(&profile) {
+                let name = match &action {
+                    Action::SetRegistry { value, .. } => Some(value.clone()),
+                    Action::DeleteRegistryValue { value, .. } => Some(value.clone()),
+                    _ => None,
+                };
+                if let Some(name) = name {
+                    assert!(
+                        !name.is_empty(),
+                        "{} writes a key default value, which rollback cannot undo",
+                        tweak.id
+                    );
+                }
+            }
+        }
+    }
+
     #[test]
     fn catalog_is_substantial() {
         assert!(

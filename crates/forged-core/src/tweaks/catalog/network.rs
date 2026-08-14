@@ -357,11 +357,16 @@ pub static TWEAKS: &[Tweak] = &[
         requires_reboot: false,
         tradeoff: None,
         applies_to: always,
+        // The commonly cited form of this tweak works by the mere *presence* of
+        // the NewNetworkWindowOff key, which Forged cannot revert faithfully:
+        // undo removes the value it wrote but leaves the now-empty key, and the
+        // dialog stays suppressed. The policy value below carries the same
+        // meaning in a value that can actually be restored.
         build: |_| {
             vec![hklm_dword(
-                r"SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff",
-                "",
-                0,
+                r"SOFTWARE\Policies\Microsoft\Windows\Network Connections",
+                "NC_StdDomainUserSetLocation",
+                1,
             )]
         },
     },

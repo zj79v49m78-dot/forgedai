@@ -123,31 +123,15 @@ pub static TWEAKS: &[Tweak] = &[
         applies_to: |p| p.memory.total_mb >= 16384,
         build: |_| vec![hklm_dword(FILESYSTEM, "NtfsMemoryUsage", 2)],
     },
-    Tweak {
-        id: "storage.disable_write_cache_buffer_flush",
-        name: "Disable write-cache buffer flushing",
-        section: Section::Storage,
-        summary: "Turns off periodic forced flushes of the drive's write cache.",
-        rationale: "Lets the drive decide when to commit its cache rather than being forced to \
-                    flush on a schedule, which removes a source of periodic I/O stalls.",
-        risk: Risk::High,
-        impact: Impact::Minor,
-        evidence: Evidence::SituationalGain,
-        requires_reboot: true,
-        tradeoff: Some(
-            "If the machine loses power abruptly, data sitting in the drive's cache is \
-                        lost and the filesystem can be left inconsistent. Only reasonable behind \
-                        a UPS, or on a machine where losing the OS install is merely annoying.",
-        ),
-        applies_to: has_flash_storage,
-        build: |_| {
-            vec![hklm_dword(
-                r"SYSTEM\CurrentControlSet\Enum\SCSI",
-                "UserWriteCacheSetting",
-                1,
-            )]
-        },
-    },
+    // Deliberately absent: disabling write-cache buffer flushing.
+    //
+    // It appears in most "ultimate SSD tweak" lists, and the payoff is a Minor
+    // reduction in periodic I/O stalls. The cost, if the machine loses power, is
+    // an inconsistent filesystem — a lost Windows install. That trade is already
+    // poor, and the registry location is per-controller and driver-specific
+    // rather than the single global value those lists cite, so Forged cannot
+    // apply it precisely enough to stand behind. A high-risk change we cannot
+    // verify is exactly the kind of entry that should not ship, so it does not.
     Tweak {
         id: "storage.disable_storage_sense",
         name: "Disable Storage Sense",

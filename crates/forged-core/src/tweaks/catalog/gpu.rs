@@ -344,9 +344,17 @@ pub static TWEAKS: &[Tweak] = &[
         requires_reboot: false,
         tradeoff: Some("If you have an HDR monitor and want Auto HDR, skip this one."),
         applies_to: always,
+        // Written as a named value under UserGpuPreferences rather than as the
+        // default value of an AutoHDREnable key: a default-value write creates a
+        // key that undo cannot remove, which would leave the setting stuck off
+        // after a rollback.
         build: |_| {
             vec![
-                hkcu_dword(r"Software\Microsoft\DirectX\AutoHDREnable", "", 0),
+                hkcu_dword(
+                    r"Software\Microsoft\DirectX\UserGpuPreferences",
+                    "AutoHDREnable",
+                    0,
+                ),
                 hkcu_dword(r"Software\Microsoft\Windows\Dwm", "EnableAutoHDR", 0),
             ]
         },
