@@ -1,0 +1,32 @@
+[workspace]
+members = ["crates/forged-core"]
+resolver = "2"
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT"
+authors = ["Forged"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "time", "fs"] }
+# TLS via schannel (the OS stack) rather than a bundled rustls/ring. On a
+# Windows-only app this drops the C-toolchain build dependency, shrinks the
+# binary, and makes Forged honour the machine's own certificate store and proxy
+# configuration instead of a private trust root.
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
