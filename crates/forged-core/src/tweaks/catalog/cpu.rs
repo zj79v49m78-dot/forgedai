@@ -25,8 +25,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Major,
         evidence: Evidence::Measured,
         requires_reboot: false,
-        tradeoff: Some("Substantially higher idle power draw. On a desktop that exists to play \
-                        one game this is the correct trade; on a laptop on battery it is not."),
+        tradeoff: Some(
+            "Substantially higher idle power draw. On a desktop that exists to play \
+                        one game this is the correct trade; on a laptop on battery it is not.",
+        ),
         applies_to: |p| !p.power.is_laptop,
         build: |_| {
             vec![
@@ -71,12 +73,18 @@ pub static TWEAKS: &[Tweak] = &[
                 command(
                     "powercfg.exe",
                     &[
-                        "/setacvalueindex", "SCHEME_CURRENT", SUB_PROCESSOR,
-                        "0cc5b647-c1df-4637-891a-dec35c318583", "100",
+                        "/setacvalueindex",
+                        "SCHEME_CURRENT",
+                        SUB_PROCESSOR,
+                        "0cc5b647-c1df-4637-891a-dec35c318583",
+                        "100",
                     ],
                     &[
-                        "/setacvalueindex", "SCHEME_CURRENT", SUB_PROCESSOR,
-                        "0cc5b647-c1df-4637-891a-dec35c318583", "0",
+                        "/setacvalueindex",
+                        "SCHEME_CURRENT",
+                        SUB_PROCESSOR,
+                        "0cc5b647-c1df-4637-891a-dec35c318583",
+                        "0",
                     ],
                 ),
                 command(
@@ -98,19 +106,27 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Moderate,
         evidence: Evidence::Measured,
         requires_reboot: false,
-        tradeoff: Some("The CPU runs hot and loud at idle. Expect the desktop to sit 15-25 °C \
-                        warmer than stock."),
+        tradeoff: Some(
+            "The CPU runs hot and loud at idle. Expect the desktop to sit 15-25 °C \
+                        warmer than stock.",
+        ),
         applies_to: |p| !p.power.is_laptop,
         build: |_| {
             vec![command(
                 "powercfg.exe",
                 &[
-                    "/setacvalueindex", "SCHEME_CURRENT", SUB_PROCESSOR,
-                    "893dee8e-2bef-41e0-89c6-b55d0929964c", "100",
+                    "/setacvalueindex",
+                    "SCHEME_CURRENT",
+                    SUB_PROCESSOR,
+                    "893dee8e-2bef-41e0-89c6-b55d0929964c",
+                    "100",
                 ],
                 &[
-                    "/setacvalueindex", "SCHEME_CURRENT", SUB_PROCESSOR,
-                    "893dee8e-2bef-41e0-89c6-b55d0929964c", "5",
+                    "/setacvalueindex",
+                    "SCHEME_CURRENT",
+                    SUB_PROCESSOR,
+                    "893dee8e-2bef-41e0-89c6-b55d0929964c",
+                    "5",
                 ],
             )]
         },
@@ -152,11 +168,13 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Major,
         evidence: Evidence::Measured,
         requires_reboot: true,
-        tradeoff: Some("This measurably reduces the machine's security. Memory Integrity is what \
+        tradeoff: Some(
+            "This measurably reduces the machine's security. Memory Integrity is what \
                         stops a malicious or vulnerable driver from writing to kernel memory. \
                         Reasonable on a dedicated games machine that does not hold anything \
                         valuable; not reasonable on a PC used for banking, work or anything you \
-                        would mind losing."),
+                        would mind losing.",
+        ),
         applies_to: |p| p.os.is_windows_11 && p.os.vbs_enabled,
         build: |_| {
             vec![
@@ -170,11 +188,7 @@ pub static TWEAKS: &[Tweak] = &[
                     "Enabled",
                     0,
                 ),
-                hklm_dword(
-                    r"SYSTEM\CurrentControlSet\Control\Lsa",
-                    "LsaCfgFlags",
-                    0,
-                ),
+                hklm_dword(r"SYSTEM\CurrentControlSet\Control\Lsa", "LsaCfgFlags", 0),
             ]
         },
     },
@@ -206,7 +220,8 @@ pub static TWEAKS: &[Tweak] = &[
         section: Section::Cpu,
         summary: "Increases the GPU and CPU priority the multimedia class scheduler grants to \
                   games.",
-        rationale: "MMCSS grants scheduling guarantees to registered multimedia tasks. Raising the \
+        rationale:
+            "MMCSS grants scheduling guarantees to registered multimedia tasks. Raising the \
                     Games profile means the game's render thread wins contention against \
                     background work.",
         risk: Risk::Low,
@@ -256,7 +271,8 @@ pub static TWEAKS: &[Tweak] = &[
         name: "Disable the dynamic timer tick",
         section: Section::Cpu,
         summary: "Stops the kernel from suppressing timer interrupts during idle periods.",
-        rationale: "Dynamic tick saves power by skipping timer interrupts when nothing needs them. \
+        rationale:
+            "Dynamic tick saves power by skipping timer interrupts when nothing needs them. \
                     Coming out of a tickless period adds a small, variable delay. The effect is \
                     real but small, and varies enough between machines that it is worth measuring \
                     rather than assuming.",
@@ -264,8 +280,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Minor,
         evidence: Evidence::SituationalGain,
         requires_reboot: true,
-        tradeoff: Some("Noticeably higher idle power draw. Revert this one first if the machine \
-                        runs hotter than you like."),
+        tradeoff: Some(
+            "Noticeably higher idle power draw. Revert this one first if the machine \
+                        runs hotter than you like.",
+        ),
         applies_to: |p| !p.power.is_laptop,
         build: |_| {
             vec![Action::RunCommand {
@@ -281,7 +299,8 @@ pub static TWEAKS: &[Tweak] = &[
         name: "Keep the hybrid core scheduler enabled",
         section: Section::Cpu,
         summary: "Ensures Intel Thread Director scheduling stays on for P-core/E-core CPUs.",
-        rationale: "Guides written for older CPUs recommend disabling the heterogeneous scheduling \
+        rationale:
+            "Guides written for older CPUs recommend disabling the heterogeneous scheduling \
                     policy. On a 12th-gen or newer Intel chip that is actively harmful: without \
                     Thread Director, Windows parks the game's render thread on an efficiency core \
                     and costs you 20% or more. This entry protects against that advice.",
@@ -311,28 +330,37 @@ pub static TWEAKS: &[Tweak] = &[
         name: "Disable CPU idle states",
         section: Section::Cpu,
         summary: "Prevents the CPU from entering any C-state below C0.",
-        rationale: "Exiting a deep C-state takes microseconds, and the deepest states flush cache. \
+        rationale:
+            "Exiting a deep C-state takes microseconds, and the deepest states flush cache. \
                     Under a bursty load this shows up in frame-time consistency. The effect is \
                     real but the thermal cost is genuinely significant.",
         risk: Risk::High,
         impact: Impact::Moderate,
         evidence: Evidence::SituationalGain,
         requires_reboot: false,
-        tradeoff: Some("The CPU will run at near-full power permanently, including at idle. On an \
+        tradeoff: Some(
+            "The CPU will run at near-full power permanently, including at idle. On an \
                         inadequate cooler this causes thermal throttling that loses more \
                         performance than the tweak gains. Watch your temperatures after applying, \
-                        and revert if the idle temperature exceeds about 60 °C."),
+                        and revert if the idle temperature exceeds about 60 °C.",
+        ),
         applies_to: |p| !p.power.is_laptop,
         build: |_| {
             vec![command(
                 "powercfg.exe",
                 &[
-                    "/setacvalueindex", "SCHEME_CURRENT", SUB_PROCESSOR,
-                    "5d76a2ca-e8c0-402f-a133-2158492d58ad", "1",
+                    "/setacvalueindex",
+                    "SCHEME_CURRENT",
+                    SUB_PROCESSOR,
+                    "5d76a2ca-e8c0-402f-a133-2158492d58ad",
+                    "1",
                 ],
                 &[
-                    "/setacvalueindex", "SCHEME_CURRENT", SUB_PROCESSOR,
-                    "5d76a2ca-e8c0-402f-a133-2158492d58ad", "0",
+                    "/setacvalueindex",
+                    "SCHEME_CURRENT",
+                    SUB_PROCESSOR,
+                    "5d76a2ca-e8c0-402f-a133-2158492d58ad",
+                    "0",
                 ],
             )]
         },
@@ -354,7 +382,11 @@ pub static TWEAKS: &[Tweak] = &[
         tradeoff: Some("Cold boot takes a few seconds longer."),
         applies_to: |p| !p.power.is_laptop,
         build: |_| {
-            vec![command("powercfg.exe", &["/hibernate", "off"], &["/hibernate", "on"])]
+            vec![command(
+                "powercfg.exe",
+                &["/hibernate", "off"],
+                &["/hibernate", "on"],
+            )]
         },
     },
     Tweak {

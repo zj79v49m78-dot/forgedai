@@ -125,7 +125,10 @@ pub fn apply_plan(
     let tweaks = resolve(tweak_ids)?;
 
     if options.dry_run {
-        let journal = Journal::new(profile.summary_line(), elevation::RestorePointResult::Created);
+        let journal = Journal::new(
+            profile.summary_line(),
+            elevation::RestorePointResult::Created,
+        );
         return Ok(ApplyOutcome {
             journal,
             reboot_required: tweaks.iter().any(|t| t.requires_reboot),
@@ -138,7 +141,10 @@ pub fn apply_plan(
     elevation::require_elevation()?;
 
     let restore_point = if options.create_restore_point {
-        elevation::try_create_restore_point(&format!("Forged {} — before optimisation", crate::VERSION))
+        elevation::try_create_restore_point(&format!(
+            "Forged {} — before optimisation",
+            crate::VERSION
+        ))
     } else {
         elevation::RestorePointResult::Unavailable("skipped by request".into())
     };
@@ -398,7 +404,11 @@ mod tests {
 
     #[test]
     fn plan_with_one_bad_id_aborts_before_touching_anything() {
-        let mut ids: Vec<String> = catalog::all().iter().take(3).map(|t| t.id.to_string()).collect();
+        let mut ids: Vec<String> = catalog::all()
+            .iter()
+            .take(3)
+            .map(|t| t.id.to_string())
+            .collect();
         ids.push("ai.hallucinated.entry".into());
         assert!(resolve(&ids).is_err());
     }

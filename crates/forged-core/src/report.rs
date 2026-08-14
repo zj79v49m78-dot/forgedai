@@ -174,7 +174,9 @@ impl Report {
         out.push_str(&format!("{}\n\n", self.headline()));
 
         if self.reboot_required {
-            out.push_str("> **A restart is required** for some of these changes to take effect.\n\n");
+            out.push_str(
+                "> **A restart is required** for some of these changes to take effect.\n\n",
+            );
         }
         if !self.restore_point_created {
             out.push_str(
@@ -347,7 +349,9 @@ mod tests {
         assert_eq!(report.effective_changes, 1, "only the real change counts");
         assert_eq!(report.neutral_changes, 1);
         assert!(report.headline().contains("1 performance changes"));
-        assert!(report.headline().contains("not expected to change performance"));
+        assert!(report
+            .headline()
+            .contains("not expected to change performance"));
     }
 
     #[test]
@@ -410,6 +414,8 @@ mod tests {
 
         let report = build(&profile, &plan_for(&[]), &outcome, String::new());
         assert!(!report.restore_point_created);
-        assert!(report.to_markdown().contains("System Restore point could not be created"));
+        assert!(report
+            .to_markdown()
+            .contains("System Restore point could not be created"));
     }
 }

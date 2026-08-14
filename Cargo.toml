@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/forged-core"]
+members = ["crates/forged-core", "src-tauri"]
 resolver = "2"
 
 [workspace.package]

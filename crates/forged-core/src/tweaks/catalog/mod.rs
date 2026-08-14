@@ -100,7 +100,10 @@ mod tests {
                 tweak.id
             );
             assert!(
-                tweak.id.chars().all(|c| c.is_ascii_lowercase() || c == '.' || c == '_' || c.is_ascii_digit()),
+                tweak
+                    .id
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c == '.' || c == '_' || c.is_ascii_digit()),
                 "tweak id '{}' must be lowercase ascii",
                 tweak.id
             );

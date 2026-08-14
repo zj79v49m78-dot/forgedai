@@ -18,9 +18,11 @@ use crate::tweaks::model::{Hive, RegData};
 use crate::win::{process, registry};
 
 /// Display adapter class GUID.
-const DISPLAY_CLASS: &str = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
+const DISPLAY_CLASS: &str =
+    r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
 /// Network adapter class GUID.
-const NET_CLASS: &str = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}";
+const NET_CLASS: &str =
+    r"SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}";
 
 /// Runs the full inventory.
 pub fn scan() -> Result<HardwareProfile> {
@@ -321,7 +323,9 @@ fn scan_storage() -> Vec<StorageDevice> {
                 model: process::json_str(row, "FriendlyName"),
                 size_gb: process::json_u64(row, "Size") / (1024 * 1024 * 1024),
                 bus_type: bus_type_name(bus_code).to_string(),
-                is_system_drive: letters.iter().any(|l| l.eq_ignore_ascii_case(&system_drive)),
+                is_system_drive: letters
+                    .iter()
+                    .any(|l| l.eq_ignore_ascii_case(&system_drive)),
                 drive_letters: letters,
                 hosts_fortnite: false,
                 media_type,
@@ -477,7 +481,13 @@ fn scan_displays() -> Vec<Display> {
 fn scan_os() -> OperatingSystem {
     let rows = process::cim_query(
         "Win32_OperatingSystem",
-        &["Caption", "Version", "BuildNumber", "OSArchitecture", "InstallDate"],
+        &[
+            "Caption",
+            "Version",
+            "BuildNumber",
+            "OSArchitecture",
+            "InstallDate",
+        ],
     )
     .unwrap_or_default();
     let row = rows.first().cloned().unwrap_or(serde_json::Value::Null);
@@ -495,7 +505,10 @@ fn scan_os() -> OperatingSystem {
     let device_guard = process::cim_query_ns(
         "root/Microsoft/Windows/DeviceGuard",
         "Win32_DeviceGuard",
-        &["VirtualizationBasedSecurityStatus", "SecurityServicesRunning"],
+        &[
+            "VirtualizationBasedSecurityStatus",
+            "SecurityServicesRunning",
+        ],
     )
     .unwrap_or_default();
 
@@ -571,8 +584,10 @@ fn scan_peripherals() -> Peripherals {
 
         // Controllers are identified by driver service first, because gamepad
         // names vary wildly between third-party pads.
-        let is_pad = matches!(service.as_str(), "xboxgip" | "XboxGipSvc" | "xinputhid" | "HidBth")
-            || lower.contains("controller")
+        let is_pad = matches!(
+            service.as_str(),
+            "xboxgip" | "XboxGipSvc" | "xinputhid" | "HidBth"
+        ) || lower.contains("controller")
             || lower.contains("gamepad")
             || lower.contains("dualsense")
             || lower.contains("dualshock")
@@ -703,7 +718,11 @@ fn scan_power() -> PowerState {
         .to_string();
     let name = active
         .find('(')
-        .and_then(|i| active[i + 1..].find(')').map(|j| active[i + 1..i + 1 + j].to_string()))
+        .and_then(|i| {
+            active[i + 1..]
+                .find(')')
+                .map(|j| active[i + 1..i + 1 + j].to_string())
+        })
         .unwrap_or_default();
 
     // A battery present means laptop, which changes the correct answer for every
@@ -725,8 +744,8 @@ fn scan_power() -> PowerState {
 }
 
 fn scan_motherboard() -> Motherboard {
-    let boards = process::cim_query("Win32_BaseBoard", &["Manufacturer", "Product"])
-        .unwrap_or_default();
+    let boards =
+        process::cim_query("Win32_BaseBoard", &["Manufacturer", "Product"]).unwrap_or_default();
     let bios = process::cim_query(
         "Win32_BIOS",
         &["Manufacturer", "SMBIOSBIOSVersion", "ReleaseDate"],
@@ -766,11 +785,13 @@ fn scan_fortnite() -> FortniteInstall {
         .map(|d| format!(r"{d}:\Program Files\Epic Games\Fortnite"))
         .collect();
 
-    let found_path = candidates.into_iter().find(|p| std::path::Path::new(p).exists());
+    let found_path = candidates
+        .into_iter()
+        .find(|p| std::path::Path::new(p).exists());
 
-    let exe = found_path.as_ref().map(|p| {
-        format!(r"{p}\FortniteGame\Binaries\Win64\FortniteClient-Win64-Shipping.exe")
-    });
+    let exe = found_path
+        .as_ref()
+        .map(|p| format!(r"{p}\FortniteGame\Binaries\Win64\FortniteClient-Win64-Shipping.exe"));
 
     let config = std::env::var("LOCALAPPDATA")
         .ok()
@@ -825,16 +846,34 @@ mod tests {
 
     #[test]
     fn parses_intel_generation() {
-        assert_eq!(parse_generation("Intel(R) Core(TM) i5-12400F", CpuVendor::Intel), Some(12));
-        assert_eq!(parse_generation("Intel(R) Core(TM) i7-13700K", CpuVendor::Intel), Some(13));
-        assert_eq!(parse_generation("Intel(R) Core(TM) i7-9700K", CpuVendor::Intel), Some(9));
-        assert_eq!(parse_generation("Intel(R) Core(TM) Ultra 7 265K", CpuVendor::Intel), Some(14));
+        assert_eq!(
+            parse_generation("Intel(R) Core(TM) i5-12400F", CpuVendor::Intel),
+            Some(12)
+        );
+        assert_eq!(
+            parse_generation("Intel(R) Core(TM) i7-13700K", CpuVendor::Intel),
+            Some(13)
+        );
+        assert_eq!(
+            parse_generation("Intel(R) Core(TM) i7-9700K", CpuVendor::Intel),
+            Some(9)
+        );
+        assert_eq!(
+            parse_generation("Intel(R) Core(TM) Ultra 7 265K", CpuVendor::Intel),
+            Some(14)
+        );
     }
 
     #[test]
     fn parses_amd_generation() {
-        assert_eq!(parse_generation("AMD Ryzen 5 7600X", CpuVendor::Amd), Some(7));
-        assert_eq!(parse_generation("AMD Ryzen 7 5800X3D", CpuVendor::Amd), Some(5));
+        assert_eq!(
+            parse_generation("AMD Ryzen 5 7600X", CpuVendor::Amd),
+            Some(7)
+        );
+        assert_eq!(
+            parse_generation("AMD Ryzen 7 5800X3D", CpuVendor::Amd),
+            Some(5)
+        );
     }
 
     #[test]
@@ -852,25 +891,47 @@ mod tests {
 
     #[test]
     fn classifies_sony_pads_by_vendor_id() {
-        assert_eq!(classify_controller("wireless controller", "054C", "0CE6"), ControllerKind::DualSense);
-        assert_eq!(classify_controller("wireless controller", "054C", "09CC"), ControllerKind::DualShock4);
+        assert_eq!(
+            classify_controller("wireless controller", "054C", "0CE6"),
+            ControllerKind::DualSense
+        );
+        assert_eq!(
+            classify_controller("wireless controller", "054C", "09CC"),
+            ControllerKind::DualShock4
+        );
     }
 
     #[test]
     fn xmp_detection_requires_a_meaningful_gap() {
-        let running_at_rated = Memory { configured_mhz: 3200, rated_mhz: 3200, ..Default::default() };
+        let running_at_rated = Memory {
+            configured_mhz: 3200,
+            rated_mhz: 3200,
+            ..Default::default()
+        };
         assert!(!running_at_rated.xmp_appears_disabled());
 
-        let jedec_fallback = Memory { configured_mhz: 2133, rated_mhz: 3200, ..Default::default() };
+        let jedec_fallback = Memory {
+            configured_mhz: 2133,
+            rated_mhz: 3200,
+            ..Default::default()
+        };
         assert!(jedec_fallback.xmp_appears_disabled());
     }
 
     #[test]
     fn underdriven_display_is_detected() {
-        let d = Display { refresh_hz: 60, max_refresh_hz: 240, ..Default::default() };
+        let d = Display {
+            refresh_hz: 60,
+            max_refresh_hz: 240,
+            ..Default::default()
+        };
         assert!(d.is_underdriven());
 
-        let ok = Display { refresh_hz: 240, max_refresh_hz: 240, ..Default::default() };
+        let ok = Display {
+            refresh_hz: 240,
+            max_refresh_hz: 240,
+            ..Default::default()
+        };
         assert!(!ok.is_underdriven());
     }
 }

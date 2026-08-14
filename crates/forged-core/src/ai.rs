@@ -120,7 +120,10 @@ impl ValidationReport {
 ///
 /// Returns the cleaned plan alongside a report of what was removed, so the UI
 /// can surface it rather than silently swallowing a bad response.
-pub fn validate(mut plan: OptimisationPlan, profile: &HardwareProfile) -> (OptimisationPlan, ValidationReport) {
+pub fn validate(
+    mut plan: OptimisationPlan,
+    profile: &HardwareProfile,
+) -> (OptimisationPlan, ValidationReport) {
     let mut report = ValidationReport::default();
     let mut seen: HashSet<String> = HashSet::new();
     let mut kept = Vec::with_capacity(plan.selected.len());
@@ -281,7 +284,10 @@ fn tool_definition() -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// Asks Claude to plan the optimisation for this machine.
-pub async fn plan(profile: &HardwareProfile, api_key: &str) -> Result<(OptimisationPlan, ValidationReport)> {
+pub async fn plan(
+    profile: &HardwareProfile,
+    api_key: &str,
+) -> Result<(OptimisationPlan, ValidationReport)> {
     let body = serde_json::json!({
         "model": MODEL,
         "max_tokens": MAX_TOKENS,
@@ -458,7 +464,9 @@ mod tests {
 
         let (cleaned, report) = validate(plan, &profile);
         assert_eq!(report.unknown_ids.len(), 2);
-        assert!(report.unknown_ids.contains(&"registry.delete_system32".to_string()));
+        assert!(report
+            .unknown_ids
+            .contains(&"registry.delete_system32".to_string()));
         assert!(cleaned
             .selected
             .iter()
@@ -491,8 +499,14 @@ mod tests {
         let profile = HardwareProfile::default();
         let mut plan = plan_with(&[]);
         plan.rejected = vec![
-            RejectedTweak { id: "gpu.hags_enable".into(), reason: "x".into() },
-            RejectedTweak { id: "not.a.real.id".into(), reason: "x".into() },
+            RejectedTweak {
+                id: "gpu.hags_enable".into(),
+                reason: "x".into(),
+            },
+            RejectedTweak {
+                id: "not.a.real.id".into(),
+                reason: "x".into(),
+            },
         ];
 
         let (cleaned, _) = validate(plan, &profile);
@@ -512,7 +526,10 @@ mod tests {
     #[test]
     fn api_errors_are_explained_usefully() {
         let msg = describe_api_error(401, r#"{"error":{"message":"invalid x-api-key"}}"#);
-        assert!(msg.contains("sk-ant-"), "401 should tell the user to check the key");
+        assert!(
+            msg.contains("sk-ant-"),
+            "401 should tell the user to check the key"
+        );
 
         let msg = describe_api_error(429, "{}");
         assert!(msg.contains("rate limited"));

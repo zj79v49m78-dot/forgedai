@@ -90,8 +90,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Moderate,
         evidence: Evidence::SituationalGain,
         requires_reboot: false,
-        tradeoff: Some("If you enable NVIDIA Reflex in the game's settings, revert this — Reflex \
-                        performs better on the fullscreen-optimisation path."),
+        tradeoff: Some(
+            "If you enable NVIDIA Reflex in the game's settings, revert this — Reflex \
+                        performs better on the fullscreen-optimisation path.",
+        ),
         applies_to: |p| p.fortnite.executable_path.is_some(),
         build: |p| {
             let Some(exe) = p.fortnite.executable_path.as_ref() else {
@@ -159,7 +161,8 @@ pub static TWEAKS: &[Tweak] = &[
         name: "Keep the anti-cheat service healthy",
         section: Section::Fortnite,
         summary: "Ensures the Easy Anti-Cheat service is set to manual start rather than disabled.",
-        rationale: "Debloat scripts frequently disable EasyAntiCheat because they do not recognise \
+        rationale:
+            "Debloat scripts frequently disable EasyAntiCheat because they do not recognise \
                     the service name. With it disabled, Fortnite will not launch at all. This \
                     entry exists to repair that damage — and it is the clearest illustration of \
                     Forged's position on anti-cheat: the correct thing to do is leave it \
@@ -188,8 +191,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Moderate,
         evidence: Evidence::Measured,
         requires_reboot: false,
-        tradeoff: Some("Windows-native clip capture and the FPS counter stop working for \
-                        Fortnite."),
+        tradeoff: Some(
+            "Windows-native clip capture and the FPS counter stop working for \
+                        Fortnite.",
+        ),
         applies_to: always,
         build: |_| {
             vec![hkcu_dword(

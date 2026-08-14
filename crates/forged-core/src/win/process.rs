@@ -23,7 +23,10 @@ impl CommandOutput {
 
 /// Runs a command and captures its output without opening a console window.
 pub fn run(program: &str, args: &[&str]) -> Result<CommandOutput> {
-    run_owned(program, &args.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+    run_owned(
+        program,
+        &args.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+    )
 }
 
 pub fn run_owned(program: &str, args: &[String]) -> Result<CommandOutput> {
@@ -113,7 +116,11 @@ pub fn cim_query(class: &str, properties: &[&str]) -> Result<Vec<serde_json::Val
 }
 
 /// Same as [`cim_query`] but against an arbitrary WMI namespace.
-pub fn cim_query_ns(namespace: &str, class: &str, properties: &[&str]) -> Result<Vec<serde_json::Value>> {
+pub fn cim_query_ns(
+    namespace: &str,
+    class: &str,
+    properties: &[&str],
+) -> Result<Vec<serde_json::Value>> {
     let props = properties.join(",");
     let script = format!(
         "Get-CimInstance -Namespace {namespace} -ClassName {class} -ErrorAction SilentlyContinue | \

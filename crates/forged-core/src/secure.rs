@@ -26,6 +26,7 @@ use windows::Win32::Security::Cryptography::{
 /// Additional entropy mixed into the DPAPI blob. Not a secret — it scopes the
 /// ciphertext to this application so another program running as the same user
 /// cannot trivially decrypt it by pointing DPAPI at the file.
+#[cfg(windows)]
 const ENTROPY: &[u8] = b"forged.optimiser.v1";
 
 fn credentials_path() -> PathBuf {

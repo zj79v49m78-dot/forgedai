@@ -59,7 +59,11 @@ fn gpu_interrupt_priority_actions(profile: &HardwareProfile) -> Vec<Action> {
         return Vec::new();
     }
     // DevicePriority 3 = High.
-    vec![hklm_dword(&affinity_path(&gpu.pnp_device_id), "DevicePriority", 3)]
+    vec![hklm_dword(
+        &affinity_path(&gpu.pnp_device_id),
+        "DevicePriority",
+        3,
+    )]
 }
 
 pub static TWEAKS: &[Tweak] = &[
@@ -77,9 +81,11 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Major,
         evidence: Evidence::Measured,
         requires_reboot: true,
-        tradeoff: Some("A small number of older GPUs behave badly with MSI enabled and can \
+        tradeoff: Some(
+            "A small number of older GPUs behave badly with MSI enabled and can \
                         black-screen on boot. If that happens, boot into Safe Mode and use \
-                        Forged's rollback, or the restore point taken before this run."),
+                        Forged's rollback, or the restore point taken before this run.",
+        ),
         applies_to: |p| p.primary_gpu().is_some_and(|g| !g.pnp_device_id.is_empty()),
         build: gpu_msi_actions,
     },
@@ -95,8 +101,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Moderate,
         evidence: Evidence::SituationalGain,
         requires_reboot: true,
-        tradeoff: Some("Deprioritises other devices' interrupts, including audio and USB. Revert \
-                        if you notice audio crackling."),
+        tradeoff: Some(
+            "Deprioritises other devices' interrupts, including audio and USB. Revert \
+                        if you notice audio crackling.",
+        ),
         applies_to: |p| p.primary_gpu().is_some_and(|g| !g.pnp_device_id.is_empty()),
         build: gpu_interrupt_priority_actions,
     },
@@ -111,12 +119,15 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Moderate,
         evidence: Evidence::Measured,
         requires_reboot: true,
-        tradeoff: Some("As with the GPU, a device that mishandles MSI can fail to initialise. \
-                        Rollback restores it."),
-        applies_to: |p| p
-            .network
-            .iter()
-            .any(|n| n.is_connected && !n.pnp_device_id.is_empty()),
+        tradeoff: Some(
+            "As with the GPU, a device that mishandles MSI can fail to initialise. \
+                        Rollback restores it.",
+        ),
+        applies_to: |p| {
+            p.network
+                .iter()
+                .any(|n| n.is_connected && !n.pnp_device_id.is_empty())
+        },
         build: nic_msi_actions,
     },
     Tweak {
@@ -264,8 +275,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Minor,
         evidence: Evidence::Documented,
         requires_reboot: true,
-        tradeoff: Some("A genuinely broken driver will hang the machine for longer before the \
-                        watchdog catches it."),
+        tradeoff: Some(
+            "A genuinely broken driver will hang the machine for longer before the \
+                        watchdog catches it.",
+        ),
         applies_to: always,
         build: |_| {
             vec![hklm_dword(

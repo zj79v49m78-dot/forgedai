@@ -121,16 +121,30 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Major,
         evidence: Evidence::Measured,
         requires_reboot: false,
-        tradeoff: Some("The Windows-native clip capture shortcut stops working. Use the GPU \
-                        vendor's own recorder if you want clips."),
+        tradeoff: Some(
+            "The Windows-native clip capture shortcut stops working. Use the GPU \
+                        vendor's own recorder if you want clips.",
+        ),
         applies_to: always,
         build: |_| {
             vec![
                 hkcu_dword(r"System\GameConfigStore", "GameDVR_Enabled", 0),
                 hkcu_dword(r"System\GameConfigStore", "GameDVR_FSEBehaviorMode", 2),
-                hkcu_dword(r"System\GameConfigStore", "GameDVR_HonorUserFSEBehaviorMode", 1),
-                hkcu_dword(r"System\GameConfigStore", "GameDVR_DXGIHonorFSEWindowsCompatible", 1),
-                hklm_dword(r"SOFTWARE\Policies\Microsoft\Windows\GameDVR", "AllowGameDVR", 0),
+                hkcu_dword(
+                    r"System\GameConfigStore",
+                    "GameDVR_HonorUserFSEBehaviorMode",
+                    1,
+                ),
+                hkcu_dword(
+                    r"System\GameConfigStore",
+                    "GameDVR_DXGIHonorFSEWindowsCompatible",
+                    1,
+                ),
+                hklm_dword(
+                    r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+                    "AllowGameDVR",
+                    0,
+                ),
                 hkcu_dword(
                     r"Software\Microsoft\Windows\CurrentVersion\GameDVR",
                     "AppCaptureEnabled",
@@ -175,8 +189,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Major,
         evidence: Evidence::Measured,
         requires_reboot: true,
-        tradeoff: Some("Higher idle power draw and fan noise on the desktop, since the GPU no \
-                        longer downclocks aggressively."),
+        tradeoff: Some(
+            "Higher idle power draw and fan noise on the desktop, since the GPU no \
+                        longer downclocks aggressively.",
+        ),
         applies_to: |p| is_nvidia(p) && gpu_class_path(p).is_some(),
         build: nvidia_power_actions,
     },
@@ -299,8 +315,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Moderate,
         evidence: Evidence::SituationalGain,
         requires_reboot: false,
-        tradeoff: Some("If you later enable Reflex in Fortnite, revert this — the two work \
-                        against each other."),
+        tradeoff: Some(
+            "If you later enable Reflex in Fortnite, revert this — the two work \
+                        against each other.",
+        ),
         applies_to: |p| !hags_is_beneficial(p),
         build: |_| {
             vec![

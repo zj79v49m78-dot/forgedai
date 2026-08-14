@@ -1,0 +1,127 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Runs on Linux because the core crate is deliberately platform-independent
+  # for exactly this reason: the catalog invariants, journal round-tripping and
+  # AI validation boundary are all testable without a Windows machine.
+  test:
+    name: Test core engine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Check formatting
+        run: cargo fmt -p forged-core -- --check
+
+      - name: Clippy
+        run: cargo clippy -p forged-core -- -D warnings
+
+      - name: Unit tests
+        run: cargo test -p forged-core --verbose
+
+  # Catches Windows-only code paths without needing a Windows runner for every
+  # push. The GNU target is used only for type-checking; the shipped binary is
+  # built with MSVC below.
+  cross-check:
+    name: Cross-check Windows target
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install mingw toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64
+
+      - name: Check core for Windows
+        run: cargo check -p forged-core --target x86_64-pc-windows-gnu
+
+  frontend:
+    name: Build frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - name: Type-check and build
+        run: npm run build
+
+  installer:
+    name: Build Windows installer
+    runs-on: windows-latest
+    needs: [test, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - run: npm ci
+
+      - name: Build installer
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          $bundle = "target/x86_64-pc-windows-msvc/release/bundle"
+          Get-ChildItem -Path $bundle -Recurse -Include *.exe, *.msi |
+            ForEach-Object { Copy-Item $_.FullName -Destination artifacts }
+          Get-ChildItem artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Forged-Windows-Installer
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 30
+
+      # Tagged pushes additionally publish a downloadable release, so the
+      # installer has a stable URL rather than living inside a CI run.
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          draft: false
+          generate_release_notes: true

@@ -14,9 +14,9 @@ use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, WIN32_ERROR};
 #[cfg(windows)]
 use windows::Win32::System::Registry::{
-    RegCloseKey, RegCreateKeyExW, RegDeleteValueW, RegOpenKeyExW, RegQueryValueExW,
-    RegSetValueExW, HKEY, HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_USERS,
-    KEY_READ, KEY_WOW64_64KEY, KEY_WRITE, REG_BINARY, REG_DWORD, REG_EXPAND_SZ, REG_MULTI_SZ,
+    RegCloseKey, RegCreateKeyExW, RegDeleteValueW, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW,
+    HKEY, HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_USERS, KEY_READ,
+    KEY_WOW64_64KEY, KEY_WRITE, REG_BINARY, REG_DWORD, REG_EXPAND_SZ, REG_MULTI_SZ,
     REG_OPTION_NON_VOLATILE, REG_QWORD, REG_SZ, REG_VALUE_TYPE,
 };
 
@@ -24,10 +24,12 @@ use windows::Win32::System::Registry::{
 // Shared helpers
 // ---------------------------------------------------------------------------
 
+#[cfg(windows)]
 fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
+#[cfg(windows)]
 fn reg_err(path: &str, value: &str, msg: impl Into<String>) -> ForgedError {
     ForgedError::Registry {
         path: path.to_string(),
@@ -350,7 +352,12 @@ pub fn get_value(_hive: Hive, _path: &str, _value: &str) -> Result<Option<RegDat
 }
 
 #[cfg(not(windows))]
-pub fn set_value(_hive: Hive, _path: &str, _value: &str, _data: &RegData) -> Result<Option<RegData>> {
+pub fn set_value(
+    _hive: Hive,
+    _path: &str,
+    _value: &str,
+    _data: &RegData,
+) -> Result<Option<RegData>> {
     Err(ForgedError::UnsupportedPlatform)
 }
 

@@ -99,9 +99,17 @@ pub static TWEAKS: &[Tweak] = &[
         applies_to: always,
         build: |_| {
             vec![
-                hkcu_dword(r"Software\Microsoft\GameBar", "UseNexusForGameBarEnabled", 0),
+                hkcu_dword(
+                    r"Software\Microsoft\GameBar",
+                    "UseNexusForGameBarEnabled",
+                    0,
+                ),
                 hkcu_dword(r"Software\Microsoft\GameBar", "ShowStartupPanel", 0),
-                hkcu_dword(r"Software\Microsoft\Windows\CurrentVersion\GameDVR", "AppCaptureEnabled", 0),
+                hkcu_dword(
+                    r"Software\Microsoft\Windows\CurrentVersion\GameDVR",
+                    "AppCaptureEnabled",
+                    0,
+                ),
             ]
         },
     },
@@ -258,7 +266,8 @@ pub static TWEAKS: &[Tweak] = &[
         name: "Clear third-party deadzone overrides",
         section: Section::Controller,
         summary: "Removes DirectInput deadzone and saturation overrides written by mapping tools.",
-        rationale: "DS4Windows, x360ce and similar utilities leave deadzone values in the registry \
+        rationale:
+            "DS4Windows, x360ce and similar utilities leave deadzone values in the registry \
                     after uninstall, which stack on top of the game's own deadzone and make small \
                     stick inputs vanish. Fortnite handles its own deadzone in-game.",
         risk: Risk::Low,
@@ -268,7 +277,8 @@ pub static TWEAKS: &[Tweak] = &[
         tradeoff: None,
         applies_to: |p| !p.peripherals.controllers.is_empty(),
         build: |_| {
-            let path = r"System\CurrentControlSet\Control\MediaProperties\PrivateProperties\DirectInput";
+            let path =
+                r"System\CurrentControlSet\Control\MediaProperties\PrivateProperties\DirectInput";
             vec![
                 Action::DeleteRegistryValue {
                     hive: Hive::CurrentUser,

@@ -75,7 +75,8 @@ pub static TWEAKS: &[Tweak] = &[
         name: "Stop background apps running",
         section: Section::System,
         summary: "Globally disables background execution for Store applications.",
-        rationale: "Store apps run background tasks to fetch mail, update live tiles and check for \
+        rationale:
+            "Store apps run background tasks to fetch mail, update live tiles and check for \
                     content. On a machine that only plays Fortnite, none of that is wanted.",
         risk: Risk::Low,
         impact: Impact::Moderate,
@@ -164,7 +165,11 @@ pub static TWEAKS: &[Tweak] = &[
         applies_to: |p| p.os.is_windows_11,
         build: |_| {
             vec![
-                hklm_dword(r"SOFTWARE\Policies\Microsoft\Dsh", "AllowNewsAndInterests", 0),
+                hklm_dword(
+                    r"SOFTWARE\Policies\Microsoft\Dsh",
+                    "AllowNewsAndInterests",
+                    0,
+                ),
                 hkcu_dword(EXPLORER_ADVANCED, "TaskbarDa", 0),
             ]
         },
@@ -183,7 +188,11 @@ pub static TWEAKS: &[Tweak] = &[
         applies_to: |p| p.os.is_windows_11,
         build: |_| {
             vec![
-                hkcu_dword(r"Software\Policies\Microsoft\Windows\WindowsCopilot", "TurnOffWindowsCopilot", 1),
+                hkcu_dword(
+                    r"Software\Policies\Microsoft\Windows\WindowsCopilot",
+                    "TurnOffWindowsCopilot",
+                    1,
+                ),
                 hkcu_dword(EXPLORER_ADVANCED, "ShowCopilotButton", 0),
             ]
         },
@@ -247,8 +256,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Moderate,
         evidence: Evidence::SituationalGain,
         requires_reboot: true,
-        tradeoff: Some("If you later connect a printer or use Remote Desktop, some of these need \
-                        turning back on. The rollback button restores all of them."),
+        tradeoff: Some(
+            "If you later connect a printer or use Remote Desktop, some of these need \
+                        turning back on. The rollback button restores all of them.",
+        ),
         applies_to: always,
         build: |_| {
             vec![
@@ -296,8 +307,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Major,
         evidence: Evidence::Measured,
         requires_reboot: false,
-        tradeoff: Some("Files inside the game folder are no longer scanned in real time. Only \
-                        install Fortnite from the official Epic launcher."),
+        tradeoff: Some(
+            "Files inside the game folder are no longer scanned in real time. Only \
+                        install Fortnite from the official Epic launcher.",
+        ),
         applies_to: |p| p.fortnite.found,
         build: |p| {
             let Some(path) = p.fortnite.install_path.as_ref() else {
@@ -352,7 +365,8 @@ pub static TWEAKS: &[Tweak] = &[
         name: "Suppress notifications during fullscreen apps",
         section: Section::System,
         summary: "Enables Focus Assist's automatic fullscreen rule.",
-        rationale: "A toast notification over a fullscreen game forces a compositor transition and \
+        rationale:
+            "A toast notification over a fullscreen game forces a compositor transition and \
                     can drop the game out of exclusive fullscreen entirely. Enabling the rule is \
                     strictly better than being interrupted.",
         risk: Risk::Low,
@@ -489,7 +503,8 @@ pub static TWEAKS: &[Tweak] = &[
         name: "Remove the menu open delay",
         section: Section::System,
         summary: "Sets MenuShowDelay to zero.",
-        rationale: "Purely a responsiveness change to the desktop, not the game. Costs nothing and \
+        rationale:
+            "Purely a responsiveness change to the desktop, not the game. Costs nothing and \
                     makes the machine feel quicker, which is most of what people are chasing when \
                     they ask for a faster PC.",
         risk: Risk::Low,
@@ -513,14 +528,21 @@ pub static TWEAKS: &[Tweak] = &[
         requires_reboot: false,
         tradeoff: None,
         applies_to: always,
-        build: |_| vec![hkcu_sz(r"Control Panel\Accessibility\StickyKeys", "Flags", "506")],
+        build: |_| {
+            vec![hkcu_sz(
+                r"Control Panel\Accessibility\StickyKeys",
+                "Flags",
+                "506",
+            )]
+        },
     },
     Tweak {
         id: "system.registry_backup_task",
         name: "Disable the periodic registry backup task",
         section: Section::System,
         summary: "Turns off the scheduled RegIdleBackup task.",
-        rationale: "Runs during idle periods and writes a full copy of the registry hives to disk. \
+        rationale:
+            "Runs during idle periods and writes a full copy of the registry hives to disk. \
                     Forged's own journal is a far more precise record of what changed.",
         risk: Risk::Low,
         impact: Impact::Minor,
@@ -531,8 +553,18 @@ pub static TWEAKS: &[Tweak] = &[
         build: |_| {
             vec![command(
                 "schtasks.exe",
-                &["/Change", "/TN", r"\Microsoft\Windows\Registry\RegIdleBackup", "/DISABLE"],
-                &["/Change", "/TN", r"\Microsoft\Windows\Registry\RegIdleBackup", "/ENABLE"],
+                &[
+                    "/Change",
+                    "/TN",
+                    r"\Microsoft\Windows\Registry\RegIdleBackup",
+                    "/DISABLE",
+                ],
+                &[
+                    "/Change",
+                    "/TN",
+                    r"\Microsoft\Windows\Registry\RegIdleBackup",
+                    "/ENABLE",
+                ],
             )]
         },
     },
@@ -541,7 +573,8 @@ pub static TWEAKS: &[Tweak] = &[
         name: "Disable the Customer Experience Improvement Program",
         section: Section::System,
         summary: "Turns off CEIP scheduled tasks and the application compatibility appraiser.",
-        rationale: "The appraiser task scans installed software and can run for minutes at a time, \
+        rationale:
+            "The appraiser task scans installed software and can run for minutes at a time, \
                     with no regard for what you are doing.",
         risk: Risk::Low,
         impact: Impact::Moderate,
@@ -559,12 +592,14 @@ pub static TWEAKS: &[Tweak] = &[
                 command(
                     "schtasks.exe",
                     &[
-                        "/Change", "/TN",
+                        "/Change",
+                        "/TN",
                         r"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
                         "/DISABLE",
                     ],
                     &[
-                        "/Change", "/TN",
+                        "/Change",
+                        "/TN",
                         r"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
                         "/ENABLE",
                     ],
@@ -587,7 +622,11 @@ pub static TWEAKS: &[Tweak] = &[
         applies_to: always,
         build: |_| {
             vec![
-                hkcu_dword(r"Software\Microsoft\Windows\CurrentVersion\Search", "SearchboxTaskbarMode", 0),
+                hkcu_dword(
+                    r"Software\Microsoft\Windows\CurrentVersion\Search",
+                    "SearchboxTaskbarMode",
+                    0,
+                ),
                 hkcu_dword(EXPLORER_ADVANCED, "ShowTaskViewButton", 0),
                 hkcu_dword(EXPLORER_ADVANCED, "TaskbarMn", 0),
             ]

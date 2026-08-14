@@ -43,13 +43,15 @@ fn vendor_hint(profile: &HardwareProfile, topic: Topic) -> String {
             if asus {
                 "Advanced → PCI Subsystem Settings → Above 4G Decoding + Re-Size BAR Support".into()
             } else if msi {
-                "Settings → Advanced → PCI Subsystem Settings → Above 4G memory / Re-Size BAR".into()
+                "Settings → Advanced → PCI Subsystem Settings → Above 4G memory / Re-Size BAR"
+                    .into()
             } else if gigabyte {
                 "Settings → IO Ports → Above 4G Decoding + Re-Size BAR Support".into()
             } else if asrock {
                 "Advanced → Chipset Configuration → Above 4G Decoding + Re-Size BAR".into()
             } else {
-                "Look for 'Above 4G Decoding' and 'Resizable BAR' under PCI or chipset settings".into()
+                "Look for 'Above 4G Decoding' and 'Resizable BAR' under PCI or chipset settings"
+                    .into()
             }
         }
         Topic::CStates => {
@@ -66,7 +68,8 @@ fn vendor_hint(profile: &HardwareProfile, topic: Topic) -> String {
         Topic::FastBoot => "Boot menu → Fast Boot".into(),
         Topic::Virtualisation => {
             if asus {
-                "Advanced → CPU Configuration → SVM Mode (AMD) / Intel Virtualization Technology".into()
+                "Advanced → CPU Configuration → SVM Mode (AMD) / Intel Virtualization Technology"
+                    .into()
             } else {
                 "CPU configuration → SVM Mode (AMD) or Intel VT-x".into()
             }
@@ -100,10 +103,7 @@ pub fn deterministic_recommendations(profile: &HardwareProfile) -> Vec<BiosRecom
     if profile.memory.xmp_appears_disabled() {
         out.push(BiosRecommendation {
             setting: "XMP / EXPO memory profile".into(),
-            target_value: format!(
-                "Enable — Profile 1 ({} MT/s)",
-                profile.memory.rated_mhz
-            ),
+            target_value: format!("Enable — Profile 1 ({} MT/s)", profile.memory.rated_mhz),
             reason: format!(
                 "Your memory is rated for {} MT/s but is currently running at {} MT/s, the JEDEC \
                  fallback speed. Fortnite's 1% lows are strongly tied to memory bandwidth and \
@@ -149,12 +149,14 @@ pub fn deterministic_recommendations(profile: &HardwareProfile) -> Vec<BiosRecom
         out.push(BiosRecommendation {
             setting: "Memory channel configuration".into(),
             target_value: "Populate a second matching module".into(),
-            reason: "Only one memory module was detected, so the machine is running single-channel \
+            reason:
+                "Only one memory module was detected, so the machine is running single-channel \
                      and has half the memory bandwidth it could. This is a hardware change rather \
                      than a setting — add a second identical module in the slot your manual \
                      specifies for dual-channel, usually A2/B2."
+                    .into(),
+            where_to_find: "Physical — check the motherboard manual for correct slot pairing"
                 .into(),
-            where_to_find: "Physical — check the motherboard manual for correct slot pairing".into(),
             priority: BiosPriority::Critical,
         });
     }
@@ -384,7 +386,10 @@ mod tests {
     fn unknown_vendor_gets_generic_but_useful_text() {
         let unknown = HardwareProfile::default();
         let hint = vendor_hint(&unknown, Topic::MemoryProfile);
-        assert!(hint.contains("XMP"), "generic hint should still name the setting");
+        assert!(
+            hint.contains("XMP"),
+            "generic hint should still name the setting"
+        );
     }
 
     #[test]
@@ -415,7 +420,11 @@ mod tests {
                 vendor: crate::hardware::CpuVendor::Intel,
                 ..Default::default()
             },
-            memory: Memory { rated_mhz: 3600, configured_mhz: 3600, ..Default::default() },
+            memory: Memory {
+                rated_mhz: 3600,
+                configured_mhz: 3600,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let recs = deterministic_recommendations(&profile);
@@ -425,7 +434,13 @@ mod tests {
     #[test]
     fn markdown_groups_by_priority() {
         let profile = HardwareProfile {
-            memory: Memory { configured_mhz: 2133, rated_mhz: 3600, total_mb: 16384, module_count: 2, ..Default::default() },
+            memory: Memory {
+                configured_mhz: 2133,
+                rated_mhz: 3600,
+                total_mb: 16384,
+                module_count: 2,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let md = to_markdown(&deterministic_recommendations(&profile), &profile);

@@ -9,7 +9,8 @@
 use crate::hardware::{HardwareProfile, MediaType};
 use crate::tweaks::model::*;
 
-const MEMORY_MANAGEMENT: &str = r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management";
+const MEMORY_MANAGEMENT: &str =
+    r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management";
 
 /// True when the system drive is solid state, which changes the correct answer
 /// for prefetch and SysMain.
@@ -83,13 +84,19 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Moderate,
         evidence: Evidence::Documented,
         requires_reboot: true,
-        tradeoff: Some("One crashing service can take down others sharing its process. In \
-                        practice this is rare, and the affected services restart."),
+        tradeoff: Some(
+            "One crashing service can take down others sharing its process. In \
+                        practice this is rare, and the affected services restart.",
+        ),
         applies_to: |p| p.memory.total_mb >= 8192,
         build: |p| {
             // Threshold must exceed installed RAM in KB for full consolidation.
             let kb = (p.memory.total_mb.max(8192) * 1024).min(u32::MAX as u64) as u32;
-            vec![hklm_dword(MEMORY_MANAGEMENT, "SvcHostSplitThresholdInKB", kb)]
+            vec![hklm_dword(
+                MEMORY_MANAGEMENT,
+                "SvcHostSplitThresholdInKB",
+                kb,
+            )]
         },
     },
     Tweak {
@@ -142,8 +149,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Moderate,
         evidence: Evidence::Documented,
         requires_reboot: true,
-        tradeoff: Some("If you later run out of RAM, the machine will page to disk instead of \
-                        compressing, which is much slower."),
+        tradeoff: Some(
+            "If you later run out of RAM, the machine will page to disk instead of \
+                        compressing, which is much slower.",
+        ),
         applies_to: |p| p.memory.total_mb >= 16384,
         build: |_| {
             vec![Action::RunCommand {
@@ -155,7 +164,11 @@ pub static TWEAKS: &[Tweak] = &[
                 ],
                 revert: RevertCommand::new(
                     "powershell.exe",
-                    &["-NoProfile", "-Command", "Enable-MMAgent -MemoryCompression"],
+                    &[
+                        "-NoProfile",
+                        "-Command",
+                        "Enable-MMAgent -MemoryCompression",
+                    ],
                 ),
                 tolerate_exit_codes: vec![1],
             }]
@@ -185,7 +198,11 @@ pub static TWEAKS: &[Tweak] = &[
                 ],
                 revert: RevertCommand::new(
                     "powershell.exe",
-                    &["-NoProfile", "-Command", "Enable-MMAgent -MemoryCompression"],
+                    &[
+                        "-NoProfile",
+                        "-Command",
+                        "Enable-MMAgent -MemoryCompression",
+                    ],
                 ),
                 tolerate_exit_codes: vec![1],
             }]
@@ -229,8 +246,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Minor,
         evidence: Evidence::Documented,
         requires_reboot: true,
-        tradeoff: Some("Paged-out memory contents are readable by anyone with physical access to \
-                        the drive."),
+        tradeoff: Some(
+            "Paged-out memory contents are readable by anyone with physical access to \
+                        the drive.",
+        ),
         applies_to: always,
         build: |_| {
             vec![hklm_dword(
@@ -245,7 +264,8 @@ pub static TWEAKS: &[Tweak] = &[
         name: "I/O page lock limit",
         section: Section::Memory,
         summary: "Sets IoPageLockLimit, a value that has had no effect since Windows XP.",
-        rationale: "Appears in essentially every 'ultimate Windows tweak' list. The value was \
+        rationale:
+            "Appears in essentially every 'ultimate Windows tweak' list. The value was \
                     removed from the memory manager two decades ago and is ignored entirely by \
                     modern kernels. Written because people check for it; reported as doing nothing.",
         risk: Risk::Low,

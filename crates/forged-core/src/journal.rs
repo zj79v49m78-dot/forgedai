@@ -119,9 +119,7 @@ impl UndoRecord {
             UndoRecord::Service { name, previous } => {
                 service::set_start(name, *previous).map(|_| ())
             }
-            UndoRecord::Command { program, args } => {
-                process::run_owned(program, args).map(|_| ())
-            }
+            UndoRecord::Command { program, args } => process::run_owned(program, args).map(|_| ()),
         }
     }
 }

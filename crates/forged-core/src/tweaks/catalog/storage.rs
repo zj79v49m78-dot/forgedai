@@ -32,7 +32,13 @@ pub static TWEAKS: &[Tweak] = &[
         requires_reboot: true,
         tradeoff: None,
         applies_to: always,
-        build: |_| vec![hklm_dword(FILESYSTEM, "NtfsDisableLastAccessUpdate", 0x8000_0001)],
+        build: |_| {
+            vec![hklm_dword(
+                FILESYSTEM,
+                "NtfsDisableLastAccessUpdate",
+                0x8000_0001,
+            )]
+        },
     },
     Tweak {
         id: "storage.disable_8dot3",
@@ -62,8 +68,10 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Moderate,
         evidence: Evidence::Measured,
         requires_reboot: true,
-        tradeoff: Some("Start menu file search becomes slow, and searching inside folders no \
-                        longer uses an index. Launching apps by name still works."),
+        tradeoff: Some(
+            "Start menu file search becomes slow, and searching inside folders no \
+                        longer uses an index. Launching apps by name still works.",
+        ),
         applies_to: always,
         build: |_| vec![service("WSearch", ServiceStart::Disabled)],
     },
@@ -72,7 +80,8 @@ pub static TWEAKS: &[Tweak] = &[
         name: "Disable scheduled defragmentation",
         section: Section::Storage,
         summary: "Turns off the weekly Optimize Drives task.",
-        rationale: "On flash storage the scheduled task performs a TRIM pass, which is useful, but \
+        rationale:
+            "On flash storage the scheduled task performs a TRIM pass, which is useful, but \
                     it can fire while you are playing. Modern SSDs handle garbage collection \
                     themselves; the scheduled pass is not needed.",
         risk: Risk::Low,
@@ -84,8 +93,18 @@ pub static TWEAKS: &[Tweak] = &[
         build: |_| {
             vec![command(
                 "schtasks.exe",
-                &["/Change", "/TN", r"\Microsoft\Windows\Defrag\ScheduledDefrag", "/DISABLE"],
-                &["/Change", "/TN", r"\Microsoft\Windows\Defrag\ScheduledDefrag", "/ENABLE"],
+                &[
+                    "/Change",
+                    "/TN",
+                    r"\Microsoft\Windows\Defrag\ScheduledDefrag",
+                    "/DISABLE",
+                ],
+                &[
+                    "/Change",
+                    "/TN",
+                    r"\Microsoft\Windows\Defrag\ScheduledDefrag",
+                    "/ENABLE",
+                ],
             )]
         },
     },
@@ -115,9 +134,11 @@ pub static TWEAKS: &[Tweak] = &[
         impact: Impact::Minor,
         evidence: Evidence::SituationalGain,
         requires_reboot: true,
-        tradeoff: Some("If the machine loses power abruptly, data sitting in the drive's cache is \
+        tradeoff: Some(
+            "If the machine loses power abruptly, data sitting in the drive's cache is \
                         lost and the filesystem can be left inconsistent. Only reasonable behind \
-                        a UPS, or on a machine where losing the OS install is merely annoying."),
+                        a UPS, or on a machine where losing the OS install is merely annoying.",
+        ),
         applies_to: has_flash_storage,
         build: |_| {
             vec![hklm_dword(
