@@ -438,28 +438,60 @@ fn extract_plan(body: &str) -> Result<OptimisationPlan> {
 /// tradeoff, order by dependency, or explain itself in terms of this hardware —
 /// but it means a network outage degrades the product rather than breaking it.
 pub fn offline_plan(profile: &HardwareProfile) -> OptimisationPlan {
-    let selected: Vec<SelectedTweak> = catalog::all()
+    use crate::tweaks::model::Risk;
+
+    // High-risk entries are deliberately withheld here.
+    //
+    // Their value depends on a judgement this code cannot make: whether the
+    // cooling can absorb permanently-disabled C-states, whether starving USB and
+    // audio interrupts to favour the GPU is a good trade on this machine. The AI
+    // planner weighs those against the actual hardware. With no planner there is
+    // nothing doing the weighing, and applying them anyway is how a machine ends
+    // up feeling worse under load than it did before — fine in a lobby, and
+    // thermally or interrupt-starved once a real match loads.
+    //
+    // They stay available: the plan screen lists them as withheld, and ticking
+    // one is a deliberate act with its tradeoff shown.
+    let (selected, withheld): (Vec<_>, Vec<_>) = catalog::all()
         .into_iter()
         .filter(|t| t.is_relevant(profile))
+        .partition(|t| t.risk < Risk::High);
+
+    let selected: Vec<SelectedTweak> = selected
+        .into_iter()
         .map(|t| SelectedTweak {
             id: t.id.to_string(),
             reason: t.rationale.to_string(),
         })
         .collect();
 
-    let rejected: Vec<RejectedTweak> = catalog::all()
+    let mut rejected: Vec<RejectedTweak> = withheld
         .into_iter()
-        .filter(|t| !t.is_relevant(profile))
         .map(|t| RejectedTweak {
             id: t.id.to_string(),
-            reason: "Not applicable to the detected hardware.".to_string(),
+            reason: format!(
+                "Withheld: this is a high-risk change and there is no AI plan to judge whether it \
+                 suits this machine. {} Tick it manually only if you accept that.",
+                t.tradeoff.unwrap_or_default()
+            ),
         })
         .collect();
 
+    rejected.extend(
+        catalog::all()
+            .into_iter()
+            .filter(|t| !t.is_relevant(profile))
+            .map(|t| RejectedTweak {
+                id: t.id.to_string(),
+                reason: "Not applicable to the detected hardware.".to_string(),
+            }),
+    );
+
     OptimisationPlan {
         summary: format!(
-            "Offline plan for {}. Every applicable catalog entry was selected without AI \
-             prioritisation — connect an API key for a plan tailored to this hardware.",
+            "Offline plan for {}. Every applicable low and medium risk entry was selected, without \
+             AI prioritisation. High-risk entries were withheld because nothing here can weigh \
+             their tradeoffs against your hardware — connect an API key for a plan that can.",
             profile.summary_line()
         ),
         bios: crate::bios::deterministic_recommendations(profile),
@@ -554,6 +586,49 @@ mod tests {
 
         let (cleaned, _) = validate(plan, &profile);
         assert_eq!(cleaned.rejected.len(), 1);
+    }
+
+    /// The offline plan runs when nothing is available to weigh a tradeoff, so
+    /// it must not apply changes whose value depends on judgement. Shipping the
+    /// unfiltered set is what left a machine feeling fine in a lobby and
+    /// interrupt-starved in a real match.
+    #[test]
+    fn offline_plan_withholds_high_risk_entries() {
+        use crate::tweaks::model::Risk;
+        let profile = HardwareProfile::default();
+        let plan = offline_plan(&profile);
+
+        for entry in &plan.selected {
+            let tweak = catalog::find(&entry.id).expect("unknown id");
+            assert!(
+                tweak.risk < Risk::High,
+                "offline plan selected high-risk entry '{}'",
+                tweak.id
+            );
+        }
+    }
+
+    /// Withholding must not mean hiding: every high-risk entry that applies to
+    /// the machine still has to appear, with its tradeoff, so the choice stays
+    /// the user's.
+    #[test]
+    fn withheld_high_risk_entries_are_still_listed() {
+        use crate::tweaks::model::Risk;
+        let profile = HardwareProfile::default();
+        let plan = offline_plan(&profile);
+
+        let applicable_high: Vec<_> = catalog::all()
+            .into_iter()
+            .filter(|t| t.risk == Risk::High && t.is_relevant(&profile))
+            .collect();
+
+        for tweak in applicable_high {
+            assert!(
+                plan.rejected.iter().any(|r| r.id == tweak.id),
+                "high-risk entry '{}' was withheld without being listed",
+                tweak.id
+            );
+        }
     }
 
     #[test]

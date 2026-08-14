@@ -97,13 +97,22 @@ pub static TWEAKS: &[Tweak] = &[
         rationale: "Tells the kernel to service the GPU's interrupts ahead of other devices. \
                     Pairs with MSI: MSI removes the routing overhead, this decides who goes first \
                     when several devices interrupt at once.",
-        risk: Risk::Medium,
+        // Rated High rather than Medium because the harm is load-dependent, which
+        // makes it genuinely hard to attribute. On a light scene nothing competes
+        // with the GPU and the machine feels flawless; in a full match the GPU
+        // saturates and the deprioritised devices are your mouse, your keyboard
+        // and your network card. The result is a machine that feels perfect in a
+        // lobby and laggy in a real game — and the natural conclusion is that the
+        // game is at fault rather than this setting.
+        risk: Risk::High,
         impact: Impact::Moderate,
         evidence: Evidence::SituationalGain,
         requires_reboot: true,
         tradeoff: Some(
-            "Deprioritises other devices' interrupts, including audio and USB. Revert \
-                        if you notice audio crackling.",
+            "Deprioritises every other device's interrupts — mouse, keyboard, network and audio — \
+             whenever the GPU is busy. Under a heavy scene this can cost you far more input and \
+             network latency than it saves. Revert this first if the machine feels fine when idle \
+             but sluggish in an actual match.",
         ),
         applies_to: |p| p.primary_gpu().is_some_and(|g| !g.pnp_device_id.is_empty()),
         build: gpu_interrupt_priority_actions,
