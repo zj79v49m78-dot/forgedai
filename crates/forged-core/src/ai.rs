@@ -23,7 +23,7 @@ use std::collections::HashSet;
 const API_URL: &str = "https://api.anthropic.com/v1/messages";
 const API_VERSION: &str = "2023-06-01";
 const MODEL: &str = "claude-opus-5";
-const MAX_TOKENS: u32 = 16000;
+const MAX_TOKENS: u32 = 8000;
 
 // ---------------------------------------------------------------------------
 // Plan shape
@@ -162,20 +162,24 @@ fn system_prompt() -> String {
         "You are the planning engine inside Forged, a Windows 11 optimisation tool for a PC used \
          exclusively to play Fortnite competitively.\n\n\
          You are given a hardware profile and a catalog of {} pre-vetted, individually reversible \
-         tweaks. Your job is to choose which apply to this specific machine, order them, and \
-         explain each one in terms of this machine's actual hardware.\n\n\
+         tweaks. Your job is to choose which apply to this specific machine and order them.\n\n\
          Rules:\n\
          - You may only select tweaks by their exact `id` from the supplied catalog. Never invent \
            an id, a registry path, or a command. Ids you invent are discarded and make the plan \
            worse.\n\
+         - `selected_ids` is a plain list of ids. Do NOT write a justification for each one — the \
+           app already holds a written rationale for every entry and will use it. Writing one \
+           anyway makes the response so long it times out, and the user sees no plan at all.\n\
+         - `highlights` is where your judgement goes: pick the 8 to 12 changes that matter most on \
+           THIS hardware and explain each in one or two sentences citing the actual CPU, GPU, RAM \
+           speed or refresh rate. This is the part the user reads.\n\
          - The user has chosen the maximum-aggression profile. Select everything that genuinely \
            helps this hardware. Do not hold back low-risk entries.\n\
          - Do still reject entries that are wrong *for this hardware*: AMD tweaks on an Intel \
            machine, SSD tweaks on a mechanical drive, laptop-hostile power settings on a laptop. \
-           Explain each rejection in one sentence.\n\
-         - Entries marked NoMeasuredBenefit should be selected (they are harmless and expected) \
-           but your reason must say plainly that it is included for completeness and is not \
-           expected to change performance. Never claim a benefit that is not there.\n\
+           List at most 10 such rejections, one sentence each.\n\
+         - High-risk entries are yours to judge. Select one only if this specific machine can \
+           absorb its stated tradeoff, and say so in `highlights`.\n\
          - Order matters: power plan changes before per-setting power tweaks, since the latter \
            write into the active scheme.\n\n\
          For the BIOS list, recommend firmware settings the software cannot change. If the profile \
@@ -187,9 +191,47 @@ fn system_prompt() -> String {
     )
 }
 
+/// The catalog as the planner sees it.
+///
+/// Deliberately omits `rationale`, which is the longest field on every entry and
+/// is already held locally — sending 123 copies of it inflated the prompt by
+/// roughly 25,000 characters and bought nothing, because the app fills the
+/// rationale back in for any entry the model does not highlight.
+#[derive(Serialize)]
+struct PlannerTweak {
+    id: &'static str,
+    name: &'static str,
+    section: crate::tweaks::model::Section,
+    summary: &'static str,
+    risk: crate::tweaks::model::Risk,
+    impact: crate::tweaks::model::Impact,
+    evidence: crate::tweaks::model::Evidence,
+    reboot: bool,
+    tradeoff: Option<&'static str>,
+}
+
+fn planner_catalog() -> Vec<PlannerTweak> {
+    catalog::all()
+        .into_iter()
+        .map(|t| PlannerTweak {
+            id: t.id,
+            name: t.name,
+            section: t.section,
+            summary: t.summary,
+            risk: t.risk,
+            impact: t.impact,
+            evidence: t.evidence,
+            reboot: t.requires_reboot,
+            tradeoff: t.tradeoff,
+        })
+        .collect()
+}
+
 fn user_prompt(profile: &HardwareProfile) -> Result<String> {
     let profile_json = serde_json::to_string_pretty(profile)?;
-    let catalog_json = serde_json::to_string_pretty(&catalog::metadata())?;
+    // Compact rather than pretty: the model does not need the whitespace and it
+    // is a meaningful fraction of the prompt at this size.
+    let catalog_json = serde_json::to_string(&planner_catalog())?;
     let findings = profile.blocking_findings();
     let findings_json = serde_json::to_string_pretty(&findings)?;
 
@@ -205,33 +247,50 @@ fn user_prompt(profile: &HardwareProfile) -> Result<String> {
 
 /// The tool schema. Forcing tool use is what makes the response parseable
 /// rather than prose we have to scrape.
+///
+/// `selected_ids` is a bare list of strings rather than objects carrying a
+/// reason. That shape is the whole reason this call completes: asking for a
+/// written justification per entry meant well over a hundred short paragraphs,
+/// which took long enough to generate that the request timed out and the user
+/// got no plan at all. Judgement now goes into a capped `highlights` list, and
+/// everything else falls back to the rationale the app already holds.
 fn tool_definition() -> serde_json::Value {
     serde_json::json!({
         "name": "submit_plan",
         "description": "Submit the optimisation plan for this machine.",
         "input_schema": {
             "type": "object",
-            "required": ["summary", "selected", "rejected", "bios", "game_settings", "hardware_notes"],
+            "required": ["summary", "selected_ids", "highlights", "bios"],
             "properties": {
                 "summary": {
                     "type": "string",
-                    "description": "2-4 sentence overview naming this machine's actual components and what the plan targets."
+                    "description": "2-4 sentences naming this machine's actual components and what the plan targets."
                 },
-                "selected": {
+                "selected_ids": {
                     "type": "array",
-                    "description": "Tweaks to apply, in application order.",
+                    "description": "Ids of every tweak to apply, in application order. Ids only — no reasons here.",
+                    "items": { "type": "string" }
+                },
+                "highlights": {
+                    "type": "array",
+                    "description": "The 8-12 changes that matter most on this hardware, explained. Ids must also appear in selected_ids.",
+                    "maxItems": 15,
                     "items": {
                         "type": "object",
                         "required": ["id", "reason"],
                         "properties": {
-                            "id": { "type": "string", "description": "Exact id from the supplied catalog." },
-                            "reason": { "type": "string", "description": "One or two sentences on why this matters on this specific hardware." }
+                            "id": { "type": "string" },
+                            "reason": {
+                                "type": "string",
+                                "description": "One or two sentences citing this machine's actual hardware."
+                            }
                         }
                     }
                 },
                 "rejected": {
                     "type": "array",
-                    "description": "Catalog entries deliberately not applied.",
+                    "description": "Entries deliberately not applied. At most 10.",
+                    "maxItems": 10,
                     "items": {
                         "type": "object",
                         "required": ["id", "reason"],
@@ -244,6 +303,7 @@ fn tool_definition() -> serde_json::Value {
                 "bios": {
                     "type": "array",
                     "description": "Firmware settings the user must change by hand.",
+                    "maxItems": 10,
                     "items": {
                         "type": "object",
                         "required": ["setting", "target_value", "reason", "where_to_find", "priority"],
@@ -259,6 +319,7 @@ fn tool_definition() -> serde_json::Value {
                 "game_settings": {
                     "type": "array",
                     "description": "In-game Fortnite settings suited to this hardware.",
+                    "maxItems": 12,
                     "items": {
                         "type": "object",
                         "required": ["setting", "value", "reason"],
@@ -272,11 +333,59 @@ fn tool_definition() -> serde_json::Value {
                 "hardware_notes": {
                     "type": "array",
                     "description": "Observations no software change can address.",
+                    "maxItems": 6,
                     "items": { "type": "string" }
                 }
             }
         }
     })
+}
+
+/// The wire shape the planner returns, before it is expanded into a full plan.
+#[derive(Deserialize)]
+struct PlannerResponse {
+    summary: String,
+    selected_ids: Vec<String>,
+    #[serde(default)]
+    highlights: Vec<SelectedTweak>,
+    #[serde(default)]
+    rejected: Vec<RejectedTweak>,
+    #[serde(default)]
+    bios: Vec<BiosRecommendation>,
+    #[serde(default)]
+    game_settings: Vec<GameSetting>,
+    #[serde(default)]
+    hardware_notes: Vec<String>,
+}
+
+impl PlannerResponse {
+    /// Expands the compact response into a full plan, filling each non-highlighted
+    /// entry's reason from the catalog rationale the app already holds.
+    fn into_plan(self) -> OptimisationPlan {
+        let selected = self
+            .selected_ids
+            .into_iter()
+            .map(|id| {
+                let reason = self
+                    .highlights
+                    .iter()
+                    .find(|h| h.id == id)
+                    .map(|h| h.reason.clone())
+                    .or_else(|| catalog::find(&id).map(|t| t.rationale.to_string()))
+                    .unwrap_or_default();
+                SelectedTweak { id, reason }
+            })
+            .collect();
+
+        OptimisationPlan {
+            summary: self.summary,
+            selected,
+            rejected: self.rejected,
+            bios: self.bios,
+            game_settings: self.game_settings,
+            hardware_notes: self.hardware_notes,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -302,7 +411,7 @@ pub async fn plan(
     });
 
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(180))
+        .timeout(std::time::Duration::from_secs(300))
         .user_agent(concat!("Forged/", env!("CARGO_PKG_VERSION")))
         // Forged runs elevated, and an elevated process does not always inherit
         // the interactive user's proxy configuration. Reading the environment
@@ -423,8 +532,9 @@ fn extract_plan(body: &str) -> Result<OptimisationPlan> {
             ))
         })?;
 
-    serde_json::from_value(tool_input.clone())
-        .map_err(|e| ForgedError::Ai(format!("the returned plan did not match the schema: {e}")))
+    let response: PlannerResponse = serde_json::from_value(tool_input.clone())
+        .map_err(|e| ForgedError::Ai(format!("the returned plan did not match the schema: {e}")))?;
+    Ok(response.into_plan())
 }
 
 // ---------------------------------------------------------------------------
@@ -660,18 +770,49 @@ mod tests {
                 { "type": "text", "text": "thinking out loud" },
                 { "type": "tool_use", "name": "submit_plan", "input": {
                     "summary": "s",
-                    "selected": [{ "id": "kbm.pointer_acceleration", "reason": "r" }],
-                    "rejected": [],
-                    "bios": [],
-                    "game_settings": [],
-                    "hardware_notes": []
+                    "selected_ids": ["kbm.pointer_acceleration", "kbm.keyboard_repeat"],
+                    "highlights": [{ "id": "kbm.pointer_acceleration", "reason": "bespoke" }],
+                    "bios": []
                 }}
             ]
         })
         .to_string();
 
         let plan = extract_plan(&body).expect("should parse");
-        assert_eq!(plan.selected.len(), 1);
+        assert_eq!(plan.selected.len(), 2);
+
+        // The highlighted entry keeps the model's bespoke reasoning.
+        assert_eq!(plan.selected[0].reason, "bespoke");
+        // The other falls back to the catalog rationale rather than being blank.
+        assert!(!plan.selected[1].reason.is_empty());
+        assert_ne!(plan.selected[1].reason, "bespoke");
+    }
+
+    /// The bug this guards: the prompt carried every entry's full rationale and
+    /// the schema demanded a written justification per entry. Together those made
+    /// a request that could not finish inside any sane timeout, so the planner
+    /// failed on every machine regardless of connection quality.
+    #[test]
+    fn planner_payload_stays_small_enough_to_answer() {
+        let profile = HardwareProfile::default();
+        let prompt = user_prompt(&profile).expect("prompt builds");
+
+        // Roughly 4 chars per token. The full-rationale version of this prompt
+        // was around 90k characters; the ceiling here leaves plenty of headroom
+        // for the catalog to grow without drifting back into timeout territory.
+        assert!(
+            prompt.len() < 60_000,
+            "planner prompt is {} chars — large prompts are what made this call time out",
+            prompt.len()
+        );
+
+        // The rationale is the single largest field and is filled in locally, so
+        // it must not be travelling to the model.
+        let rationale = catalog::all()[0].rationale;
+        assert!(
+            !prompt.contains(rationale),
+            "catalog rationale is being sent to the planner; it is held locally already"
+        );
     }
 
     #[test]
