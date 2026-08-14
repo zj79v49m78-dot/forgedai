@@ -22,7 +22,12 @@ use std::collections::HashSet;
 
 const API_URL: &str = "https://api.anthropic.com/v1/messages";
 const API_VERSION: &str = "2023-06-01";
-const MODEL: &str = "claude-opus-5";
+// Haiku, not Opus. The planner's job is selecting from a vetted list and writing
+// a few short explanations — it does not need a frontier model, and Haiku is a
+// fraction of the cost and several times faster, which also removed the timeouts
+// that plagued the Opus version. The optimisation itself runs locally for free;
+// this call is an optional convenience layer, so it should be cheap.
+const MODEL: &str = "claude-haiku-4-5-20251001";
 const MAX_TOKENS: u32 = 8000;
 
 // ---------------------------------------------------------------------------
@@ -173,8 +178,9 @@ fn system_prompt() -> String {
          - `highlights` is where your judgement goes: pick the 8 to 12 changes that matter most on \
            THIS hardware and explain each in one or two sentences citing the actual CPU, GPU, RAM \
            speed or refresh rate. This is the part the user reads.\n\
-         - The user has chosen the maximum-aggression profile. Select everything that genuinely \
-           helps this hardware. Do not hold back low-risk entries.\n\
+         - This machine exists only to play Fortnite, so select everything that genuinely helps \
+           this hardware. Every entry in the catalog is safe and reversible — there are no \
+           machine-wrecking options to weigh, because they were removed. Do not hold back.\n\
          - Do still reject entries that are wrong *for this hardware*: AMD tweaks on an Intel \
            machine, SSD tweaks on a mechanical drive, laptop-hostile power settings on a laptop. \
            List at most 10 such rejections, one sentence each.\n\

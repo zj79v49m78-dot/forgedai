@@ -155,43 +155,11 @@ pub static TWEAKS: &[Tweak] = &[
             )]
         },
     },
-    Tweak {
-        id: "cpu.disable_vbs",
-        name: "Disable Virtualisation Based Security",
-        section: Section::Cpu,
-        summary: "Turns off VBS, HVCI (Memory Integrity) and Credential Guard.",
-        rationale: "VBS runs Windows inside a hypervisor so that kernel memory can be protected \
-                    by a higher privilege level. That indirection costs 5-15% of CPU-bound frame \
-                    rate, and Fortnite at competitive settings is CPU-bound. This is the largest \
-                    single software FPS gain available on a stock Windows 11 install.",
-        risk: Risk::High,
-        impact: Impact::Major,
-        evidence: Evidence::Measured,
-        requires_reboot: true,
-        tradeoff: Some(
-            "This measurably reduces the machine's security. Memory Integrity is what \
-                        stops a malicious or vulnerable driver from writing to kernel memory. \
-                        Reasonable on a dedicated games machine that does not hold anything \
-                        valuable; not reasonable on a PC used for banking, work or anything you \
-                        would mind losing.",
-        ),
-        applies_to: |p| p.os.is_windows_11 && p.os.vbs_enabled,
-        build: |_| {
-            vec![
-                hklm_dword(
-                    r"SYSTEM\CurrentControlSet\Control\DeviceGuard",
-                    "EnableVirtualizationBasedSecurity",
-                    0,
-                ),
-                hklm_dword(
-                    r"SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity",
-                    "Enabled",
-                    0,
-                ),
-                hklm_dword(r"SYSTEM\CurrentControlSet\Control\Lsa", "LsaCfgFlags", 0),
-            ]
-        },
-    },
+    // Removed: cpu.disable_vbs. It was the single largest software FPS gain, but
+    // it turns off Memory Integrity — a real reduction in the machine's security.
+    // A safe-by-default tool should not silently weaken kernel protection, so it
+    // is gone rather than merely gated. The BIOS sheet still mentions VBS for
+    // anyone who wants to make that call themselves in firmware.
     Tweak {
         id: "cpu.disable_power_throttling",
         name: "Disable per-process power throttling",
@@ -325,46 +293,11 @@ pub static TWEAKS: &[Tweak] = &[
             ]
         },
     },
-    Tweak {
-        id: "cpu.disable_idle_states",
-        name: "Disable CPU idle states",
-        section: Section::Cpu,
-        summary: "Prevents the CPU from entering any C-state below C0.",
-        rationale:
-            "Exiting a deep C-state takes microseconds, and the deepest states flush cache. \
-                    Under a bursty load this shows up in frame-time consistency. The effect is \
-                    real but the thermal cost is genuinely significant.",
-        risk: Risk::High,
-        impact: Impact::Moderate,
-        evidence: Evidence::SituationalGain,
-        requires_reboot: false,
-        tradeoff: Some(
-            "The CPU will run at near-full power permanently, including at idle. On an \
-                        inadequate cooler this causes thermal throttling that loses more \
-                        performance than the tweak gains. Watch your temperatures after applying, \
-                        and revert if the idle temperature exceeds about 60 °C.",
-        ),
-        applies_to: |p| !p.power.is_laptop,
-        build: |_| {
-            vec![command(
-                "powercfg.exe",
-                &[
-                    "/setacvalueindex",
-                    "SCHEME_CURRENT",
-                    SUB_PROCESSOR,
-                    "5d76a2ca-e8c0-402f-a133-2158492d58ad",
-                    "1",
-                ],
-                &[
-                    "/setacvalueindex",
-                    "SCHEME_CURRENT",
-                    SUB_PROCESSOR,
-                    "5d76a2ca-e8c0-402f-a133-2158492d58ad",
-                    "0",
-                ],
-            )]
-        },
-    },
+    // Removed: cpu.disable_idle_states. Pinning the CPU out of every C-state
+    // makes it run at near-full power permanently, and on a cooler that cannot
+    // absorb that it thermally throttles under load — losing more than it gains,
+    // exactly when a match is loading. This is the entry most likely to make a
+    // machine feel worse rather than better, so a safe-by-default tool omits it.
     Tweak {
         id: "cpu.disable_hibernation",
         name: "Disable hibernation and fast startup",

@@ -21,14 +21,6 @@ fn msi_path(pnp_device_id: &str) -> String {
     )
 }
 
-/// Path to a PCI device's interrupt priority node.
-fn affinity_path(pnp_device_id: &str) -> String {
-    format!(
-        r"SYSTEM\CurrentControlSet\Enum\{}\Device Parameters\Interrupt Management\Affinity Policy",
-        pnp_device_id
-    )
-}
-
 fn gpu_msi_actions(profile: &HardwareProfile) -> Vec<Action> {
     let Some(gpu) = profile.primary_gpu() else {
         return Vec::new();
@@ -49,21 +41,6 @@ fn nic_msi_actions(profile: &HardwareProfile) -> Vec<Action> {
         .filter(|n| n.is_connected && !n.pnp_device_id.is_empty())
         .map(|n| hklm_dword(&msi_path(&n.pnp_device_id), "MSISupported", 1))
         .collect()
-}
-
-fn gpu_interrupt_priority_actions(profile: &HardwareProfile) -> Vec<Action> {
-    let Some(gpu) = profile.primary_gpu() else {
-        return Vec::new();
-    };
-    if gpu.pnp_device_id.is_empty() {
-        return Vec::new();
-    }
-    // DevicePriority 3 = High.
-    vec![hklm_dword(
-        &affinity_path(&gpu.pnp_device_id),
-        "DevicePriority",
-        3,
-    )]
 }
 
 pub static TWEAKS: &[Tweak] = &[
@@ -89,34 +66,12 @@ pub static TWEAKS: &[Tweak] = &[
         applies_to: |p| p.primary_gpu().is_some_and(|g| !g.pnp_device_id.is_empty()),
         build: gpu_msi_actions,
     },
-    Tweak {
-        id: "latency.gpu_interrupt_priority",
-        name: "Raise GPU interrupt priority",
-        section: Section::Latency,
-        summary: "Sets the graphics device's interrupt affinity policy to high priority.",
-        rationale: "Tells the kernel to service the GPU's interrupts ahead of other devices. \
-                    Pairs with MSI: MSI removes the routing overhead, this decides who goes first \
-                    when several devices interrupt at once.",
-        // Rated High rather than Medium because the harm is load-dependent, which
-        // makes it genuinely hard to attribute. On a light scene nothing competes
-        // with the GPU and the machine feels flawless; in a full match the GPU
-        // saturates and the deprioritised devices are your mouse, your keyboard
-        // and your network card. The result is a machine that feels perfect in a
-        // lobby and laggy in a real game — and the natural conclusion is that the
-        // game is at fault rather than this setting.
-        risk: Risk::High,
-        impact: Impact::Moderate,
-        evidence: Evidence::SituationalGain,
-        requires_reboot: true,
-        tradeoff: Some(
-            "Deprioritises every other device's interrupts — mouse, keyboard, network and audio — \
-             whenever the GPU is busy. Under a heavy scene this can cost you far more input and \
-             network latency than it saves. Revert this first if the machine feels fine when idle \
-             but sluggish in an actual match.",
-        ),
-        applies_to: |p| p.primary_gpu().is_some_and(|g| !g.pnp_device_id.is_empty()),
-        build: gpu_interrupt_priority_actions,
-    },
+    // Removed: latency.gpu_interrupt_priority. It deprioritised every other
+    // device's interrupts whenever the GPU was busy — so the mouse, keyboard and
+    // network card were starved exactly during a heavy match. It felt perfect in
+    // a lobby and awful in a real game, which is the worst kind of bug: it looks
+    // like the game's fault. This is the entry that caused the reported in-game
+    // delay, and it is gone.
     Tweak {
         id: "latency.nic_msi_mode",
         name: "Enable Message Signaled Interrupts on the network card",
