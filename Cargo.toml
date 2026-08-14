@@ -24,9 +24,15 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "ti
 # configuration instead of a private trust root.
 reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
 
+# Tuned for build time as much as output size. Fat LTO with codegen-units = 1
+# across the Tauri dependency graph pushed a clean Windows build past 45 minutes
+# on a CI runner, and bought very little: the installer's size is dominated by
+# the bundled frontend and the WebView2 bootstrapper, not by our object code, and
+# nothing Forged does at runtime is CPU-bound. Thin LTO keeps the great majority
+# of the size win at a fraction of the link cost.
 [profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1
+opt-level = "s"
+lto = "thin"
+codegen-units = 16
 panic = "abort"
 strip = true
