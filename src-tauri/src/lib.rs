@@ -128,6 +128,9 @@ struct PlanResult {
     /// True when the plan came from the deterministic fallback rather than the
     /// model. Surfaced in the UI so the user is never misled about it.
     offline: bool,
+    /// Why the fallback was used, when it was not simply a missing key. Shown
+    /// verbatim so a network or key problem is diagnosable rather than mystifying.
+    fallback_reason: Option<String>,
 }
 
 #[tauri::command]
@@ -139,19 +142,27 @@ async fn build_plan(state: State<'_, AppState>) -> CmdResult<PlanResult> {
         .clone()
         .ok_or("run a scan first")?;
 
+    // Falling back is never an error path for the caller: a machine with no key,
+    // no internet, or a rejected key still gets a usable plan. Dead-ending the
+    // user in front of a completed scan because a network request failed would
+    // waste the only part of the run that is hard to redo.
+    let fall_back = |reason: String| {
+        tracing::warn!("planning offline: {reason}");
+        let plan = ai::offline_plan(&profile);
+        *state.plan.lock().unwrap() = Some(plan.clone());
+        PlanResult {
+            plan,
+            validation: ValidationReport::default(),
+            offline: true,
+            fallback_reason: Some(reason),
+        }
+    };
+
     let key = match secure::load_api_key() {
         Ok(k) => k,
-        Err(e) => {
-            // No key is a normal state, not an error: fall back and say so.
-            tracing::info!("planning offline: {e}");
-            let plan = ai::offline_plan(&profile);
-            *state.plan.lock().unwrap() = Some(plan.clone());
-            return Ok(PlanResult {
-                plan,
-                validation: ValidationReport::default(),
-                offline: true,
-            });
-        }
+        // A missing key is an expected state rather than a failure, so it is
+        // reported without an alarming reason string.
+        Err(_) => return Ok(fall_back("No API key is saved.".into())),
     };
 
     match ai::plan(&profile, &key).await {
@@ -161,9 +172,10 @@ async fn build_plan(state: State<'_, AppState>) -> CmdResult<PlanResult> {
                 plan,
                 validation,
                 offline: false,
+                fallback_reason: None,
             })
         }
-        Err(e) => Err(e.to_string()),
+        Err(e) => Ok(fall_back(e.to_string())),
     }
 }
 

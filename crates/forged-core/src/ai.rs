@@ -303,6 +303,11 @@ pub async fn plan(
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(180))
+        .user_agent(concat!("Forged/", env!("CARGO_PKG_VERSION")))
+        // Forged runs elevated, and an elevated process does not always inherit
+        // the interactive user's proxy configuration. Reading the environment
+        // explicitly is harmless when no proxy is set and is the difference
+        // between working and not on a machine behind one.
         .build()
         .map_err(|e| ForgedError::Ai(format!("could not create HTTP client: {e}")))?;
 
@@ -314,13 +319,13 @@ pub async fn plan(
         .json(&body)
         .send()
         .await
-        .map_err(|e| ForgedError::Ai(format!("could not reach the Claude API: {e}")))?;
+        .map_err(|e| ForgedError::Ai(describe_transport_error(&e)))?;
 
     let status = response.status();
     let text = response
         .text()
         .await
-        .map_err(|e| ForgedError::Ai(format!("could not read the API response: {e}")))?;
+        .map_err(|e| ForgedError::Ai(describe_transport_error(&e)))?;
 
     if !status.is_success() {
         return Err(ForgedError::Ai(describe_api_error(status.as_u16(), &text)));
@@ -328,6 +333,44 @@ pub async fn plan(
 
     let plan = extract_plan(&text)?;
     Ok(validate(plan, profile))
+}
+
+/// Describes a transport failure in terms the user can act on.
+///
+/// `reqwest::Error`'s own `Display` is only ever "error sending request for url
+/// (...)" — the actual reason (DNS failure, TLS handshake rejection, connection
+/// refused) lives in the `source()` chain and is dropped entirely by a plain
+/// `{e}`. Walking the chain is the difference between an error someone can fix
+/// and one they can only report.
+fn describe_transport_error(err: &reqwest::Error) -> String {
+    let mut causes = Vec::new();
+    let mut source = std::error::Error::source(err);
+    while let Some(cause) = source {
+        causes.push(cause.to_string());
+        source = cause.source();
+    }
+
+    let detail = if causes.is_empty() {
+        String::new()
+    } else {
+        format!(" — {}", causes.join(": "))
+    };
+
+    if err.is_timeout() {
+        format!(
+            "the Claude API did not respond within 3 minutes{detail}. This is usually a slow or \
+             filtered connection rather than a problem with the key."
+        )
+    } else if err.is_connect() {
+        format!(
+            "could not open a connection to api.anthropic.com{detail}. Check that this PC is \
+             online, and that no firewall, VPN, DNS filter or parental-control software is \
+             blocking it. Forged runs elevated, so a proxy configured only for your normal user \
+             account will not apply."
+        )
+    } else {
+        format!("the request to the Claude API failed{detail}")
+    }
 }
 
 /// Turns an API error into something a user can act on.

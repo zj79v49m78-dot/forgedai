@@ -91,10 +91,17 @@ export function Plan({
       <p className="lede selectable">{plan.summary}</p>
 
       {offline && (
-        <Notice kind="warn" title="Planned offline">
-          No API key was available, so this is the deterministic fallback: every applicable catalog
-          entry, unordered and without hardware-specific reasoning. Add a key in Settings for a
-          better plan.
+        <Notice kind="warn" title="Planned offline — the AI planner was not used">
+          <p style={{ margin: "0 0 8px" }}>
+            This is the deterministic fallback: every catalog entry that applies to your hardware,
+            without AI ordering or hardware-specific reasoning. It is safe to apply and every change
+            is still reversible — you are just missing the tailored explanations.
+          </p>
+          {result.fallback_reason && (
+            <p className="selectable" style={{ margin: 0, color: "var(--text)" }}>
+              <strong>Reason:</strong> {result.fallback_reason}
+            </p>
+          )}
         </Notice>
       )}
 

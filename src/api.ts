@@ -238,6 +238,8 @@ export interface PlanResult {
   plan: OptimisationPlan;
   validation: ValidationReport;
   offline: boolean;
+  /** Why the offline fallback was used. Null when the AI plan succeeded. */
+  fallback_reason: string | null;
 }
 
 export interface PlannedChange {
